@@ -27,7 +27,57 @@ def create_seed_data():
             # Limpar dados existentes
             db.query(models.Aluno).delete()
             db.query(models.Turma).delete()
+            db.query(models.Usuario).delete()
             db.commit()
+        
+        print("👥 Criando usuários do sistema...")
+        
+        # Criar usuários
+        usuarios_data = [
+            {
+                "username": "admin",
+                "nome_completo": "Administrador do Sistema",
+                "email": "admin@escola.com",
+                "tipo": "admin",
+                "password": "admin123"
+            },
+            {
+                "username": "prof.maria",
+                "nome_completo": "Maria Silva Santos",
+                "email": "maria.santos@escola.com",
+                "tipo": "professor",
+                "password": "prof123"
+            },
+            {
+                "username": "prof.joao",
+                "nome_completo": "João Carlos Lima",
+                "email": "joao.lima@escola.com",
+                "tipo": "professor",
+                "password": "prof123"
+            },
+            {
+                "username": "prof.ana",
+                "nome_completo": "Ana Paula Costa",
+                "email": "ana.costa@escola.com",
+                "tipo": "professor",
+                "password": "prof123"
+            }
+        ]
+        
+        usuarios = []
+        for user_data in usuarios_data:
+            usuario = models.Usuario(
+                username=user_data["username"],
+                nome_completo=user_data["nome_completo"],
+                email=user_data["email"],
+                tipo=user_data["tipo"]
+            )
+            usuario.set_password(user_data["password"])
+            db.add(usuario)
+            usuarios.append(usuario)
+        
+        db.commit()
+        print(f"✅ Criados {len(usuarios)} usuários")
         
         print("📚 Criando turmas...")
         
@@ -98,20 +148,38 @@ def create_seed_data():
         db.commit()
         
         print(f"✅ Criados {len(alunos)} alunos")
+        
+        # Estatísticas finais
+        total_usuarios = db.query(models.Usuario).count()
+        total_turmas = db.query(models.Turma).count()
+        total_alunos = db.query(models.Aluno).count()
+        alunos_ativos = db.query(models.Aluno).filter(models.Aluno.status == "ativo").count()
+        
         print("\n📊 Resumo dos dados criados:")
-        print(f"   🏫 Turmas: {len(turmas)}")
-        print(f"   👥 Alunos: {len(alunos)}")
+        print(f"👥 Usuários: {total_usuarios}")
+        print(f"🏫 Turmas: {total_turmas}")
+        print(f"�‍🎓 Alunos: {total_alunos}")
+        print(f"✅ Alunos Ativos: {alunos_ativos}")
         
         matriculados = sum(1 for aluno in alunos if aluno.turma_id is not None)
         nao_matriculados = len(alunos) - matriculados
         
-        print(f"   ✅ Alunos matriculados: {matriculados}")
-        print(f"   ❌ Alunos não matriculados: {nao_matriculados}")
+        print(f"📚 Alunos matriculados: {matriculados}")
+        print(f"❌ Alunos não matriculados: {nao_matriculados}")
         
         print("\n🔍 Distribuição por turma:")
         for turma in turmas:
             count = sum(1 for aluno in alunos if aluno.turma_id == turma.id)
             print(f"   📚 {turma.nome}: {count}/{turma.capacidade} alunos")
+        
+        print("\n🔑 Credenciais de acesso:")
+        print("👑 Administrador:")
+        print("   Username: admin")
+        print("   Password: admin123")
+        print("\n👨‍🏫 Professores:")
+        print("   Username: prof.maria | Password: prof123")
+        print("   Username: prof.joao  | Password: prof123")
+        print("   Username: prof.ana   | Password: prof123")
         
         print("\n🎉 Dados de exemplo criados com sucesso!")
         print("💡 Use estes dados para testar o sistema.")
@@ -132,6 +200,7 @@ def clear_database():
         print("🗑️  Limpando banco de dados...")
         db.query(models.Aluno).delete()
         db.query(models.Turma).delete()
+        db.query(models.Usuario).delete()
         db.commit()
         print("✅ Banco de dados limpo com sucesso!")
     except Exception as e:

@@ -1,3 +1,20 @@
+/* Botão de ação especial para Novo Professor */
+.btn-accent {
+    background-color: #6366F1;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.btn-accent:hover {
+    background-color: #4338CA;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.16);
+}
 /* =====================================================
    SISTEMA DE GESTÃO ESCOLAR - STYLES.CSS
    Cores da identidade visual:
@@ -41,6 +58,180 @@ body {
     outline-offset: 2px;
 }
 
+/* =====================================================
+   TELA DE LOGIN
+   ===================================================== */
+
+.login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+    padding: 1rem;
+}
+
+.login-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2563EB;
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: #64748B;
+    font-size: 0.95rem;
+}
+
+.login-form {
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    border-color: #2563EB;
+    outline: none;
+}
+
+.login-btn {
+    width: 100%;
+    background: #2563EB;
+    color: white;
+    border: none;
+    padding: 0.875rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.login-btn:hover {
+    background: #1D4ED8;
+}
+
+.login-btn:disabled {
+    background: #9CA3AF;
+    cursor: not-allowed;
+}
+
+.login-error {
+    background: #FEE2E2;
+    color: #DC2626;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #FECACA;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.login-info {
+    background: #F0F9FF;
+    border: 1px solid #BAE6FD;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1.5rem;
+}
+
+.login-info h3 {
+    color: #0369A1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.credentials {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.credential-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.credential-item strong {
+    color: #374151;
+}
+
+.credential-item span {
+    color: #6B7280;
+    font-family: 'Courier New', monospace;
+    background: #F9FAFB;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #E5E7EB;
+}
+
+.loader {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   INTERFACE PRINCIPAL
+   ===================================================== */
+
+.main-app {
+    min-height: 100vh;
+}
+
 /* Header */
 .header {
     background-color: #2563EB;
@@ -63,6 +254,40 @@ body {
     font-size: 1.75rem;
     font-weight: 600;
     margin: 0;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-info {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.logout-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1.2rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .search-container {
@@ -664,6 +889,26 @@ body {
         background-color: #000;
         border: 2px solid #000;
     }
+}
+
+/* =====================================================
+   CONTROLES DE PERMISSÃO
+   ===================================================== */
+
+.view-only {
+    color: #6B7280;
+    font-size: 0.875rem;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.action-btns {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
 }
 
 /* Redução de movimento para acessibilidade */

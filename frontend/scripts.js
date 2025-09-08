@@ -3,10 +3,11 @@
 // Frontend JavaScript ES6+ sem frameworks
 // =====================================================
 
-// Configuração da API
-const API_BASE_URL = 'http://localhost:8000';
+// Configuração da API: usar caminhos relativos (mesma origem)
+const API_BASE_URL = '';
 
 // Estado da aplicação
+let currentUser = null;
 let currentTab = 'alunos';
 let currentSort = 'nome';
 let sortOrder = 'asc';
@@ -25,10 +26,130 @@ let turmasData = [];
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    setupEventListeners();
-    loadInitialData();
+    checkAuthStatus();
 });
+
+function checkAuthStatus() {
+    // Verificar se o usuário está logado
+    fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        credentials: 'include'
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Não autenticado');
+        }
+    })
+    .then(user => {
+        currentUser = user;
+        showMainApp();
+        initializeApp();
+        setupEventListeners();
+        loadInitialData();
+    })
+    .catch(() => {
+        showLoginScreen();
+        setupLoginEventListeners();
+    });
+}
+
+function showLoginScreen() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+}
+
+function showMainApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    updateUserInfo();
+}
+
+function updateUserInfo() {
+    if (currentUser) {
+        const userInfo = document.getElementById('userInfo');
+        const roleIcon = currentUser.is_admin ? '👑' : '👨‍🏫';
+        const roleText = currentUser.is_admin ? 'Admin' : 'Professor';
+        userInfo.textContent = `${roleIcon} ${currentUser.nome_completo} (${roleText})`;
+    }
+}
+
+// =====================================================
+// AUTENTICAÇÃO
+// =====================================================
+
+function setupLoginEventListeners() {
+    const loginForm = document.getElementById('loginForm');
+    loginForm.addEventListener('submit', handleLogin);
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const loginBtn = document.querySelector('.login-btn');
+    const loginBtnText = document.getElementById('loginBtnText');
+    const loginBtnLoader = document.getElementById('loginBtnLoader');
+    const loginError = document.getElementById('loginError');
+    
+    // Mostrar loading
+    loginBtn.disabled = true;
+    loginBtnText.style.display = 'none';
+    loginBtnLoader.style.display = 'inline';
+    loginError.style.display = 'none';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentUser = data.user;
+            showMainApp();
+            initializeApp();
+            setupEventListeners();
+            loadInitialData();
+            showToast('Login realizado com sucesso!', 'success');
+        } else {
+            loginError.textContent = data.detail || 'Erro ao fazer login';
+            loginError.style.display = 'block';
+        }
+    } catch (error) {
+        loginError.textContent = 'Erro de conexão. Tente novamente.';
+        loginError.style.display = 'block';
+    } finally {
+        // Esconder loading
+        loginBtn.disabled = false;
+        loginBtnText.style.display = 'inline';
+        loginBtnLoader.style.display = 'none';
+    }
+}
+
+async function handleLogout() {
+    try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        
+        currentUser = null;
+        showLoginScreen();
+        setupLoginEventListeners();
+        showToast('Logout realizado com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+        showToast('Erro ao fazer logout', 'error');
+    }
+}
 
 function initializeApp() {
     // Configurar ordenação persistida
@@ -48,43 +169,103 @@ function initializeApp() {
 }
 
 function setupEventListeners() {
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
     // Tabs
     document.getElementById('tabAlunos').addEventListener('click', () => switchTab('alunos'));
     document.getElementById('tabTurmas').addEventListener('click', () => switchTab('turmas'));
     document.getElementById('tabRelatorios').addEventListener('click', () => switchTab('relatorios'));
-    
+
     // Busca
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
-    
+
     searchInput.addEventListener('input', debounce(handleSearch, 300));
     searchBtn.addEventListener('click', handleSearch);
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSearch();
     });
-    
+
     // Filtros
     document.getElementById('turmaFilter').addEventListener('change', handleFilterChange);
     document.getElementById('statusFilter').addEventListener('change', handleFilterChange);
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
-    
+
     // Ordenação
     document.getElementById('sortBy').addEventListener('change', handleSortChange);
     document.getElementById('sortOrder').addEventListener('click', toggleSortOrder);
-    
-    // Botões principais
-    document.getElementById('btnNovoAluno').addEventListener('click', () => openModal('modalNovoAluno'));
-    document.getElementById('btnNovaTurma').addEventListener('click', () => openModal('modalNovaTurma'));
+
+    // Botões principais - permissões de admin
+
+    const btnNovoProfessor = document.getElementById('btnNovoProfessor');
+
+    if (currentUser && currentUser.is_admin) {
+        btnNovoAluno.style.display = '';
+        btnNovaTurma.style.display = '';
+        btnNovoProfessor.style.display = '';
+        btnNovoAluno.disabled = false;
+        btnNovaTurma.disabled = false;
+        btnNovoProfessor.disabled = false;
+        btnNovoAluno.addEventListener('click', () => openModal('modalNovoAluno'));
+        btnNovaTurma.addEventListener('click', () => openModal('modalNovaTurma'));
+        btnNovoProfessor.addEventListener('click', () => openModal('modalNovoProfessor'));
+    } else {
+        // Para professores, esconder botões de criação
+        btnNovoAluno.style.display = 'none';
+        btnNovaTurma.style.display = 'none';
+        btnNovoProfessor.style.display = 'none';
+    }
+// Cadastro de professor (apenas admin)
+document.addEventListener('DOMContentLoaded', () => {
+    const formProfessor = document.getElementById('formProfessor');
+    if (formProfessor) {
+        formProfessor.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const nome = document.getElementById('nomeProfessor').value.trim();
+            const email = document.getElementById('emailProfessor').value.trim();
+            const senha = document.getElementById('senhaProfessor').value;
+
+            if (!nome || !email || !senha) {
+                showToast('Preencha todos os campos obrigatórios.', 'error');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`${API_BASE_URL}/usuarios`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ nome, email, senha, is_admin: false })
+                });
+                if (resp.ok) {
+                    showToast('Professor cadastrado com sucesso!', 'success');
+                    closeModal('modalNovoProfessor');
+                    formProfessor.reset();
+                } else {
+                    const data = await resp.json();
+                    showToast(data.message || 'Erro ao cadastrar professor.', 'error');
+                }
+            } catch (err) {
+                showToast('Erro de conexão ao cadastrar professor.', 'error');
+            }
+        });
+    }
+});
+
     document.getElementById('btnExportar').addEventListener('click', handleExport);
-    
+
     // Modais
     setupModalEventListeners();
-    
+
     // Exportação
     setupExportEventListeners();
-    
-    // Teclas de atalho para acessibilidade
-    document.addEventListener('keydown', handleKeyboardShortcuts);
+
+    // Teclas de atalho para acessibilidade (apenas admin)
+    if (currentUser && currentUser.is_admin) {
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+    }
 }
 
 function setupModalEventListeners() {
@@ -191,9 +372,15 @@ async function loadAlunos() {
         if (filters.turma) queryParams.append('turma_id', filters.turma);
         if (filters.status) queryParams.append('status', filters.status);
         
-        const response = await fetch(`${API_BASE_URL}/alunos?${queryParams}`);
+        const response = await fetch(`${API_BASE_URL}/alunos?${queryParams}`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
+            if (response.status === 401) {
+                showLoginScreen();
+                return;
+            }
             throw new Error(`Erro ${response.status}: ${response.statusText}`);
         }
         
@@ -212,7 +399,9 @@ async function loadAlunos() {
 
 async function loadTurmas() {
     try {
-        const response = await fetch(`${API_BASE_URL}/turmas`);
+        const response = await fetch(`${API_BASE_URL}/turmas`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
             throw new Error(`Erro ${response.status}: ${response.statusText}`);
@@ -234,7 +423,7 @@ async function loadTurmas() {
 
 function renderAlunos() {
     const tbody = document.getElementById('alunosTableBody');
-    
+
     if (alunosData.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -246,11 +435,11 @@ function renderAlunos() {
         `;
         return;
     }
-    
+
     // Aplicar ordenação
     const sortedData = [...alunosData].sort((a, b) => {
         let valueA, valueB;
-        
+
         switch (currentSort) {
             case 'nome':
                 valueA = a.nome.toLowerCase();
@@ -272,43 +461,52 @@ function renderAlunos() {
                 valueA = a[currentSort] || '';
                 valueB = b[currentSort] || '';
         }
-        
+
         if (sortOrder === 'asc') {
             return valueA > valueB ? 1 : -1;
         } else {
             return valueA < valueB ? 1 : -1;
         }
     });
-    
-    tbody.innerHTML = sortedData.map(aluno => `
-        <tr>
-            <td>${escapeHtml(aluno.nome)}</td>
-            <td>${formatDate(aluno.data_nascimento)} (${calculateAge(aluno.data_nascimento)} anos)</td>
-            <td>${aluno.email ? escapeHtml(aluno.email) : '-'}</td>
-            <td><span class="status-badge status-${aluno.status}">${aluno.status}</span></td>
-            <td>${aluno.turma_nome ? escapeHtml(aluno.turma_nome) : '-'}</td>
-            <td>
-                <div class="action-btns">
-                    <button class="btn-action btn-edit" onclick="editAluno(${aluno.id})" aria-label="Editar aluno ${escapeHtml(aluno.nome)}">
-                        Editar
-                    </button>
-                    <button class="btn-action btn-delete" onclick="deleteAluno(${aluno.id})" aria-label="Excluir aluno ${escapeHtml(aluno.nome)}">
-                        Excluir
-                    </button>
-                    ${!aluno.turma_id ? `
-                        <button class="btn-action btn-matricular" onclick="openMatriculaModal(${aluno.id})" aria-label="Matricular aluno ${escapeHtml(aluno.nome)}">
-                            Matricular
-                        </button>
-                    ` : ''}
-                </div>
-            </td>
-        </tr>
-    `).join('');
+
+    tbody.innerHTML = sortedData.map(aluno => {
+        if (currentUser && currentUser.is_admin) {
+            return `
+                <tr>
+                    <td>${escapeHtml(aluno.nome)}</td>
+                    <td>${formatDate(aluno.data_nascimento)} (${calculateAge(aluno.data_nascimento)} anos)</td>
+                    <td>${aluno.email ? escapeHtml(aluno.email) : '-'}</td>
+                    <td><span class="status-badge status-${aluno.status}">${aluno.status}</span></td>
+                    <td>${aluno.turma_nome ? escapeHtml(aluno.turma_nome) : '-'}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn-action btn-edit" onclick="editAluno(${aluno.id})" aria-label="Editar aluno ${escapeHtml(aluno.nome)}">Editar</button>
+                            <button class="btn-action btn-delete" onclick="deleteAluno(${aluno.id})" aria-label="Excluir aluno ${escapeHtml(aluno.nome)}">Excluir</button>
+                            ${!aluno.turma_id ? `<button class="btn-action btn-matricular" onclick="openMatriculaModal(${aluno.id})" aria-label="Matricular aluno ${escapeHtml(aluno.nome)}">Matricular</button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            return `
+                <tr>
+                    <td>${escapeHtml(aluno.nome)}</td>
+                    <td>${formatDate(aluno.data_nascimento)} (${calculateAge(aluno.data_nascimento)} anos)</td>
+                    <td>${aluno.email ? escapeHtml(aluno.email) : '-'}</td>
+                    <td><span class="status-badge status-${aluno.status}">${aluno.status}</span></td>
+                    <td>${aluno.turma_nome ? escapeHtml(aluno.turma_nome) : '-'}</td>
+                    <td>
+                        <span class="view-only">👁️ Apenas visualização</span>
+                    </td>
+                </tr>
+            `;
+        }
+    }).join('');
 }
 
 function renderTurmas() {
     const tbody = document.getElementById('turmasTableBody');
-    
+
     if (turmasData.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -320,33 +518,47 @@ function renderTurmas() {
         `;
         return;
     }
-    
+
     tbody.innerHTML = turmasData.map(turma => {
         const ocupacao = alunosData.filter(aluno => aluno.turma_id === turma.id).length;
         const percentualOcupacao = (ocupacao / turma.capacidade * 100).toFixed(1);
-        
-        return `
-            <tr>
-                <td>${escapeHtml(turma.nome)}</td>
-                <td>${turma.capacidade}</td>
-                <td>
-                    ${ocupacao}/${turma.capacidade} (${percentualOcupacao}%)
-                    <div class="progress-bar" style="width: 100%; height: 4px; background: #E5E7EB; border-radius: 2px; margin-top: 4px;">
-                        <div style="width: ${percentualOcupacao}%; height: 100%; background: ${ocupacao >= turma.capacidade ? '#EF4444' : '#10B981'}; border-radius: 2px;"></div>
-                    </div>
-                </td>
-                <td>
-                    <div class="action-btns">
-                        <button class="btn-action btn-edit" onclick="editTurma(${turma.id})" aria-label="Editar turma ${escapeHtml(turma.nome)}">
-                            Editar
-                        </button>
-                        <button class="btn-action btn-delete" onclick="deleteTurma(${turma.id})" aria-label="Excluir turma ${escapeHtml(turma.nome)}">
-                            Excluir
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
+
+        if (currentUser && currentUser.is_admin) {
+            return `
+                <tr>
+                    <td>${escapeHtml(turma.nome)}</td>
+                    <td>${turma.capacidade}</td>
+                    <td>
+                        ${ocupacao}/${turma.capacidade} (${percentualOcupacao}%)
+                        <div class="progress-bar" style="width: 100%; height: 4px; background: #E5E7EB; border-radius: 2px; margin-top: 4px;">
+                            <div style="width: ${percentualOcupacao}%; height: 100%; background: ${ocupacao >= turma.capacidade ? '#EF4444' : '#10B981'}; border-radius: 2px;"></div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn-action btn-edit" onclick="editTurma(${turma.id})" aria-label="Editar turma ${escapeHtml(turma.nome)}">Editar</button>
+                            <button class="btn-action btn-delete" onclick="deleteTurma(${turma.id})" aria-label="Excluir turma ${escapeHtml(turma.nome)}">Excluir</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            return `
+                <tr>
+                    <td>${escapeHtml(turma.nome)}</td>
+                    <td>${turma.capacidade}</td>
+                    <td>
+                        ${ocupacao}/${turma.capacidade} (${percentualOcupacao}%)
+                        <div class="progress-bar" style="width: 100%; height: 4px; background: #E5E7EB; border-radius: 2px; margin-top: 4px;">
+                            <div style="width: ${percentualOcupacao}%; height: 100%; background: ${ocupacao >= turma.capacidade ? '#EF4444' : '#10B981'}; border-radius: 2px;"></div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="view-only">👁️ Apenas visualização</span>
+                    </td>
+                </tr>
+            `;
+        }
     }).join('');
 }
 
@@ -433,6 +645,7 @@ async function handleAlunoSubmit(e) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(alunoData)
         });
         
@@ -476,6 +689,12 @@ async function editAluno(id) {
 }
 
 async function deleteAluno(id) {
+    // Verificar se é admin
+    if (!currentUser || !currentUser.is_admin) {
+        showToast('Apenas administradores podem excluir alunos', 'error');
+        return;
+    }
+    
     const aluno = alunosData.find(a => a.id === id);
     if (!aluno) return;
     
@@ -487,7 +706,8 @@ async function deleteAluno(id) {
         showLoading(true);
         
         const response = await fetch(`${API_BASE_URL}/alunos/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
         
         if (!response.ok) {
@@ -524,6 +744,7 @@ async function handleTurmaSubmit(e) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(turmaData)
         });
         
@@ -565,6 +786,12 @@ async function editTurma(id) {
 }
 
 async function deleteTurma(id) {
+    // Verificar se é admin
+    if (!currentUser || !currentUser.is_admin) {
+        showToast('Apenas administradores podem excluir turmas', 'error');
+        return;
+    }
+    
     const turma = turmasData.find(t => t.id === id);
     if (!turma) return;
     
@@ -583,7 +810,8 @@ async function deleteTurma(id) {
         showLoading(true);
         
         const response = await fetch(`${API_BASE_URL}/turmas/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
         
         if (!response.ok) {
@@ -679,6 +907,7 @@ async function handleMatriculaSubmit(e) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(matriculaData)
         });
         
