@@ -1,60 +1,3 @@
-@app.route('/auth/usuarios', methods=['POST'])
-@admin_required
-def create_usuario():
-    db = get_db()
-    data = request.get_json()
-    nome = data.get('nome')
-    email = data.get('email')
-    senha = data.get('senha')
-    username = email  # username igual ao email
-    tipo = 'professor'
-    if not nome or not email or not senha:
-        return jsonify({'message': 'Nome, email e senha são obrigatórios.'}), 400
-    # Verifica se já existe usuário com mesmo email
-    if db.query(models.Usuario).filter(models.Usuario.email == email).first():
-        return jsonify({'message': 'Já existe um usuário com este email.'}), 400
-    usuario = models.Usuario(
-        username=username,
-        nome_completo=nome,
-        email=email,
-        tipo=tipo,
-        ativo=True
-    )
-    usuario.set_password(senha)
-    db.add(usuario)
-    db.commit()
-    return jsonify({'message': 'Professor cadastrado com sucesso!', 'id': usuario.id}), 201
-# Cadastro de novo professor (login) - apenas admin
-
-
-
-# Cadastro de novo professor (login) - apenas admin
-@app.route('/auth/usuarios', methods=['POST'])
-@admin_required
-def create_usuario():
-    db = get_db()
-    data = request.get_json()
-    nome = data.get('nome')
-    email = data.get('email')
-    senha = data.get('senha')
-    username = email  # username igual ao email
-    tipo = 'professor'
-    if not nome or not email or not senha:
-        return jsonify({'message': 'Nome, email e senha são obrigatórios.'}), 400
-    # Verifica se já existe usuário com mesmo email
-    if db.query(models.Usuario).filter(models.Usuario.email == email).first():
-        return jsonify({'message': 'Já existe um usuário com este email.'}), 400
-    usuario = models.Usuario(
-        username=username,
-        nome_completo=nome,
-        email=email,
-        tipo=tipo,
-        ativo=True
-    )
-    usuario.set_password(senha)
-    db.add(usuario)
-    db.commit()
-    return jsonify({'message': 'Professor cadastrado com sucesso!', 'id': usuario.id}), 201
 # Sistema de Gestão Escolar - Backend com Flask
 # Flask + SQLAlchemy + SQLite + Autenticação
 
@@ -352,6 +295,43 @@ def get_usuarios():
         return jsonify(result)
     finally:
         db.close()
+
+@app.route('/auth/usuarios', methods=['POST'])
+@admin_required
+def create_usuario():
+    print('[USUARIO CREATE] Requisição recebida:', request.json)
+    """Criar um novo usuário do tipo professor apenas com username e senha"""
+    db = get_db()
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()
+    senha = data.get('senha') or ''
+    if not username or not senha:
+        return jsonify({'message': 'username e senha são obrigatórios.'}), 400
+    # Verificar duplicidade
+    if db.query(models.Usuario).filter(models.Usuario.username == username).first():
+        return jsonify({'message': 'Já existe um usuário com este username.'}), 400
+    # Criar usuário com nome_completo igual ao username e tipo professor
+    usuario = models.Usuario(
+        username=username,
+        nome_completo=username,
+        email=None,
+        tipo='professor',
+        ativo=True
+    )
+    usuario.set_password(senha)
+    try:
+        db.add(usuario)
+        db.commit()
+        user_id = usuario.id
+        db.close()
+        return jsonify({'message': 'Usuário (professor) criado com sucesso!', 'id': user_id}), 201
+    except Exception as e:
+        import traceback
+        print('[USUARIO CREATE ERROR]', e)
+        traceback.print_exc()
+        db.rollback()
+        db.close()
+        return jsonify({'message': f'Erro ao criar usuário: {str(e)}'}), 500
 
 # =====================================================
 # ENDPOINTS DE SAÚDE

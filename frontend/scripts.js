@@ -210,6 +210,44 @@ function setupEventListeners() {
         btnNovoAluno.addEventListener('click', () => openModal('modalNovoAluno'));
         btnNovaTurma.addEventListener('click', () => openModal('modalNovaTurma'));
         btnNovoProfessor.addEventListener('click', () => openModal('modalNovoProfessor'));
+
+        // Cadastro de professor (apenas admin)
+        const formProfessor = document.getElementById('formProfessor');
+        if (formProfessor) {
+            formProfessor.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const username = document.getElementById('usernameProfessor').value.trim();
+                const senha = document.getElementById('senhaProfessor').value;
+
+                if (!username || !senha) {
+                    showToast('Informe nome de usuário e senha.', 'error');
+                    return;
+                }
+
+                try {
+                    console.log('[FRONTEND] Enviando cadastro de professor:', { username, senha });
+                    const resp = await fetch(`${API_BASE_URL}/auth/usuarios`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username, senha })
+                    });
+                    console.log('[FRONTEND] Resposta do backend:', resp);
+                    if (resp.ok) {
+                        showToast('Login de professor criado com sucesso!', 'success');
+                        closeModal('modalNovoProfessor');
+                        formProfessor.reset();
+                    } else {
+                        const data = await resp.json();
+                        showToast(data.message || 'Erro ao criar login.', 'error');
+                    }
+                } catch (err) {
+                    console.error('[FRONTEND] Erro ao criar login:', err);
+                    showToast('Erro de conexão ao criar login.', 'error');
+                }
+            });
+        }
     } else {
         // Para professores, esconder botões de criação
         btnNovoAluno.style.display = 'none';
@@ -217,42 +255,6 @@ function setupEventListeners() {
         btnNovoProfessor.style.display = 'none';
     }
 // Cadastro de professor (apenas admin)
-document.addEventListener('DOMContentLoaded', () => {
-    const formProfessor = document.getElementById('formProfessor');
-    if (formProfessor) {
-        formProfessor.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const nome = document.getElementById('nomeProfessor').value.trim();
-            const email = document.getElementById('emailProfessor').value.trim();
-            const senha = document.getElementById('senhaProfessor').value;
-
-            if (!nome || !email || !senha) {
-                showToast('Preencha todos os campos obrigatórios.', 'error');
-                return;
-            }
-
-            try {
-                const resp = await fetch(`${API_BASE_URL}/usuarios`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ nome, email, senha, is_admin: false })
-                });
-                if (resp.ok) {
-                    showToast('Professor cadastrado com sucesso!', 'success');
-                    closeModal('modalNovoProfessor');
-                    formProfessor.reset();
-                } else {
-                    const data = await resp.json();
-                    showToast(data.message || 'Erro ao cadastrar professor.', 'error');
-                }
-            } catch (err) {
-                showToast('Erro de conexão ao cadastrar professor.', 'error');
-            }
-        });
-    }
-});
 
     document.getElementById('btnExportar').addEventListener('click', handleExport);
 
